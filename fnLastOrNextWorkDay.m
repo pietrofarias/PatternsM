@@ -56,7 +56,7 @@ let
         optional HolidayDatesList as list
     ) as date meta 
         [
-            Documentation.Name = "LastOrNextWorkDay",
+            Documentation.Name = "fnLastOrNextWorkDay",
             Documentation.LongDescription = "Descriptions in pt-BR: Estão função retorna qual o próximo dia útil, ou último, com base em uma data de referência (startDate), considerando uma lista de feriados (opcional) e a possibilidade de se inclusivo com a data de referência (startDate) na contagem de dias úteis. Por padrão não é inclusivo.",
             Documentation.Examples =
             {
