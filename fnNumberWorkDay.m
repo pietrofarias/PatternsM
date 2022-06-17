@@ -1,3 +1,5 @@
+// Developer: Pietro Farias
+// analistax@email.com
 let
     fn = (startDate as date, EndDate as date, optional InclusiveStartDate as nullable logical, optional HolidayDatesList as list) /*as number*/  =>
         let
