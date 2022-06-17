@@ -1,3 +1,6 @@
+//	Developer Pietro Farias
+//	pietrofarias@analistax.com
+
 let
     fn = (startDate as date, NumberOfWorkingDays as number, optional InclusiveStartDate as nullable logical, optional HolidayDatesList as list) as date  =>
         let
