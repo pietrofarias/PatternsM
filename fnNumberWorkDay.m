@@ -11,15 +11,15 @@ let
                     List.Generate( () => 
                         [
                             Counter = 0,
-                            StartDate = startDate,
-                            Holiday = List.MatchesAny(HolidayDates, each _ = StartDate),
+                            StartDate = Date.From(startDate),
+                            Holiday = List.MatchesAny(HolidayDates, each Date.From(_) = StartDate),
                             Run = Counter <=  Number.Abs(DurationDays)
                         ],
                         
                         each [Run] = true and [StartDate] <= EndDate,
                         each [
                             StartDate = Date.AddDays([StartDate], 1),
-                            Holiday = List.MatchesAny(HolidayDates, each _ = StartDate),
+                            Holiday = List.MatchesAny(HolidayDates, each Date.From(_) = StartDate),
                             Counter = 
                                 if  Date.DayOfWeek(StartDate, Day.Saturday) > 1
                                     and not Holiday 
@@ -41,7 +41,7 @@ let
                                 IsHoliday = 
                                     if HolidayDates is null 
                                     then false 
-                                    else List.MatchesAny(HolidayDates, each _ = DateRef)
+                                    else List.MatchesAny(HolidayDates, each Date.From(_) = DateRef)
                             in IsWeekDay = false or IsHoliday = true
                         ) and (
                             if InclusiveDay then _ >= startDate else _ > startDate
