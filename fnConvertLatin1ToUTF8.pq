@@ -1,0 +1,1 @@
+(textLatin1 as text) as text => Text.FromBinary(Text.ToBinary(textLatin1, 858), TextEncoding.Utf8)
