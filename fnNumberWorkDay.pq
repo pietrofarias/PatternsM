@@ -5,52 +5,36 @@ let
         startDate as date,
         EndDate as date,
         optional InclusiveStartDate as nullable logical,
-        optional HolidayDatesList as list
-    )as number =>
+        optional HolidayDatesList as list,
+        optional ConsiderWeekendsAsWorkingDays as number
+    ) as number =>
         let
+            FirstDayOfWeekOptional = (dateSelect as date) =>
+                if ConsiderWeekendsAsWorkingDays = null or ConsiderWeekendsAsWorkingDays = 0 then
+                    Date.DayOfWeek(dateSelect, Day.Saturday) <= 1
+                else if ConsiderWeekendsAsWorkingDays = 1 then
+                    false
+                else if ConsiderWeekendsAsWorkingDays = 2 then
+                    Date.DayOfWeek(dateSelect, Day.Sunday) = 0
+                else if ConsiderWeekendsAsWorkingDays = 3 then
+                    Date.DayOfWeek(dateSelect, Day.Saturday) = 0
+                else
+                    error "O parâmetro 'ConsiderWeekendsAsWorkingDays' é inválido. O valor só pode ser nulo ou de 0..3",
             HolidayDates = if HolidayDatesList is null then {} else HolidayDatesList,
             InclusiveDay = if InclusiveStartDate is null then false else InclusiveStartDate,
             DurationDays = Duration.Days(EndDate - startDate),
             GenerateList = List.Buffer(
-                List.Generate(
-                    () =>
-                        [
-                            Counter = 0,
-                            StartDate = Date.From(startDate),
-                            Holiday = List.MatchesAny(HolidayDates, each Date.From(_) = StartDate),
-                            Run = Counter <= Number.Abs(DurationDays)
-                        ],
-                    each [Run] = true and [StartDate] <= EndDate,
-                    each
-                        [
-                            StartDate = Date.AddDays([StartDate], 1),
-                            Holiday = List.MatchesAny(HolidayDates, each Date.From(_) = StartDate),
-                            Counter = if Date.DayOfWeek(StartDate, Day.Saturday) > 1 and not Holiday then
-                                [Counter] + 1
-                            else
-                                [Counter],
-                            Run = Counter <= Number.Abs(DurationDays)
-                        ],
-                    each [StartDate]
+                List.Dates(
+                    if InclusiveDay then
+                        startDate
+                    else
+                        Date.AddDays(startDate, 1),
+                    DurationDays + Number.From(InclusiveDay),
+                    #duration(1, 0, 0, 0)
                 )
             ),
-            RemoveDateWeekndayAndHoliday = List.Select(
-                GenerateList,
-                each
-                    not (
-                        let
-                            DateRef = _,
-                            IsWeekDay = Date.DayOfWeek(DateRef, Day.Saturday) > 1,
-                            IsHoliday =
-                                if HolidayDates is null then
-                                    false
-                                else
-                                    List.MatchesAny(HolidayDates, each Date.From(_) = DateRef)
-                        in
-                            IsWeekDay = false or IsHoliday = true
-                    )
-                    and (if InclusiveDay then _ >= startDate else _ > startDate)
-            ),
+            WeekendDates = List.Select(GenerateList, each FirstDayOfWeekOptional(_)),
+            RemoveDateWeekndayAndHoliday = List.RemoveMatchingItems(GenerateList, HolidayDates & WeekendDates),
             Result = List.Count(RemoveDateWeekndayAndHoliday)
         in
             Result,
@@ -58,30 +42,42 @@ let
         startDate as date,
         EndDate as date,
         optional InclusiveStartDate as (type logical meta [Documentation.AllowedValues = {true, false}]),
-        optional HolidayDatesList as list
+        optional HolidayDatesList as list,
+        optional ConsiderWeekendsAsWorkingDays as (
+            type number meta [
+                Documentation.AllowedValues = {null, 0, 1, 2, 3},
+                Documentation.FieldCaption = "Considerar final de semana como dia últi?",
+                Documentation.FieldDescription = "0/null = Não considerar final de semana como dia útil, 1-considerar final de semana como dia útil, 2-Considerar sábado dia útil, 3-Considerar domingo dia útil"
+            ]
+        )
     ) as date meta [
         Documentation.Name = "fnNumberWorkDay",
-        Documentation.LongDescription = "Descriptions in pt-BR: Estão função retorna a quantidade de dias úteis com base em uma data de referência (startDate), considerando uma lista de feriados (opcional) e a possibilidade de se inclusivo com a data de referência (startDate) na contagem. Por padrão não é inclusivo.",
+        Documentation.LongDescription = "Descriptions in pt-BR: Esta função retorna a quantidade de dias úteis com base em uma data de referência (startDate), considerando uma lista de feriados (opcional) e a possibilidade de se inclusivo com a data de referência (startDate) na contagem. Por padrão não é inclusivo. O parâmetro 'ConsiderWeekendsAsWorkingDays', é usado para considerar o final de semana como dia útil. Os valores possiveis para o parâmetro 'ConsiderWeekendsAsWorkingDays' são: 0/null = Não considerar final de semana como dia útil, 1-considerar final de semana como dia útil, 2-Considerar sábado dia útil, 3-Considerar domingo dia útil",
         Documentation.Examples = {
             [
                 Description = "Esta função retorna a quantidade de dias úteis, desconsiderando uma os feriados da lista HolidayDatesQuery (lista de datas) e os finais de semana",
-                Code = "NumberWorkDay(#date(2020,12,31), #date(2020,1,7), false, HolidayDatesQuery)",
+                Code = "NumberWorkDay(#date(2020,1,7), #date(2020,12,31), false, HolidayDatesQuery)",
                 Result = "4"
             ],
             [
                 Description = "Esta função retorna a quantidade de dias úteis, desconsiderando apenas o final de semana",
-                Code = "LastOrNextWorkDay(#date(2020,12,31), #date(2020,1,6), false)",
+                Code = "LastOrNextWorkDay(#date(2020,1,6), #date(2020,12,31), false)",
                 Result = "4"
             ],
             [
                 Description = "Esta função retorna a quantidade de dias úteis, desconsiderando apenas o final de semana e incluindo a data de referência na contagem",
-                Code = "LastOrNextWorkDay(#date(2020,12,31), #date(2020,1,5), false)",
+                Code = "LastOrNextWorkDay(#date(2020,1,5), #date(2020,12,31), false)",
                 Result = "4"
             ],
             [
                 Description = "Esta função retorna a quantidade de dias úteis, desconsiderando apenas o final de semana, incluindo a data de referência na contagem, mas a data de referência é um sábado",
-                Code = "LastOrNextWorkDay(#date(2021,1,2), #date(2020,1,7), true)",
+                Code = "LastOrNextWorkDay(#date(2020,1,7), #date(2021,1,2), true)",
                 Result = "4"
+            ],
+            [
+                Description = "Esta função retorna a quantidade de dias úteis, considerando o sábado como dia útil, incluindo a data de referência na contagem",
+                Code = "LastOrNextWorkDay(#date(2024,4,25), #date(2024,4,30)",
+                Result = "5"
             ]
         }
     ]
