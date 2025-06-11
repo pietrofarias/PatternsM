@@ -3,7 +3,7 @@
 // Description: Dynamically constructs an OData query string for the Procas API,
 //              supporting $filter, $select, and $top options.
 // Author: P. Farias
-// Repository: https://github.com/pietrofarias/PatternsM | Version: 1.0
+// Repository: https://github.com/pietrofarias/PatternsM | Version: 2.0
 // =============================================================================
 //
 // Example parameters for testing:
@@ -39,7 +39,7 @@ let
             hasFilter    = Record.HasFields(options, "filter"),
             hasSelect    = Record.HasFields(options, "select"),
             hasTop       = Record.HasFields(options, "top"),
-            hasAnyQuery  = hasFilter or hasSelect or hasTop,
+            hasAnyQuery  = try hasFilter or hasSelect or hasTop otherwise false,
 
             strFilter =
                 if hasFilter then
@@ -50,7 +50,18 @@ let
                             each Text.Combine(
                                 List.Transform(
                                     _[values],
-                                    (v) => _[field] & " " & _[operator] & " '" & v & "'"
+                                    (v) =>
+                                        let
+                                            isDateTime = try DateTime.From(v) otherwise null,
+                                            formatted = 
+                                                if isDateTime <> null then
+                                                    DateTime.ToText(isDateTime, "yyyy-MM-ddThh:mm:ssZ")
+                                                else if Value.Is(v, type number) then
+                                                    Text.From(v)
+                                                else
+                                                    "'" & Text.From(v) & "'"
+                                        in
+                                            _[field] & " " & _[operator] & " " & formatted
                                 ),
                                 " or "
                             )
